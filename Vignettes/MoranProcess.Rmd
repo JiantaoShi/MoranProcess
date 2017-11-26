@@ -1,0 +1,73 @@
+---
+title: "Characterizing cancer initiation by Moran Process"
+author: "Jiantao Shi"
+date: "`r BiocStyle::doc_date()`"
+abstract: >
+  It has been shown that the age incidence of chronic myeloid leukemia can be explained by a one-mutation Moran process model [@Michor03102006]. Moran process assumes the total number of cells is fixed over time, thus when a cell divides, another cell will be chosen by random to die. This model is in general useful to describe cancer initiation since the total number of pre-cancer cells tends to be stable. Here we implemented Moran process in Rcpp and apllied it to clone expansion of acute myeloid leukemia.
+
+output:
+  BiocStyle::pdf_document:
+    fig_width: 6 
+    fig_height: 4
+    toc: true
+
+bibliography: library.bib
+
+vignette: >
+  %\VignetteIndexEntry{characterizing cancer initiation by Moran Process}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding[utf8]{inputenc}
+---
+
+# Intruduction
+Mutations in oncogenes and tumor suppressor genes can increase the net reproductive rate of cells (fitness) and therefore provide a selective advantage for mutated cells. Most human cancers arise in epithelial tissues, which are organized into small compartments of cells [@Nowak09122003]. Consider a compartment with $N$ cells within a tissue, wild-type cells have fitness of $1$, and mutant cells have fitness of $r$. In each cell division, a gene has a probability of $u$ to mutate. In typical Moran process, any single time step consists of two elementary events: (1) a random cell is chosen for division proportional to its fitness, and (2) a random cell is chosen for elimination. Thus, total number of cells keep constant. Here we implemented Moran process in Rcpp and applied it to clone expansion of acute myeloid leukemia.
+
+# Implementation and example
+There are 6 parameters in this model: total number of cells $N$, cell division rate $\tau$ (per day), relative fitness of mutant cells $r$ ($r$ > 1), mutation rate $u$, detection probability $\alpha$ given $N$ total mutant cells, Age $A$ (years). The core function is implemented in $MoranPorcess$($N$, $A$, $\tau$, $r$, $u$, $\alpha$). It returns values to indicate whether cancer is detected in an individual before age $A$ (1 means detected). Detailed explanation of these parameters can be found at [@Michor03102006].
+
+
+```{r load library, eval=TRUE, warning=FALSE, message=FALSE}
+library("Rcpp")
+library("RcppArmadillo")
+sourceCpp("../src/MoranProcess.cpp")
+
+ls()
+```
+As shown above, `Rcpp` and `RcppArmadillo` are loaded to compile Rcpp source code, which results in `MoranPorcess`. Let's use parameters defined in [@Michor03102006] as an example: $N = 2000$, $A = 80$, $r = 1.01$, $u = 10^{-6}$, $\tau = 40$, $\alpha = 2*10^{-5}$. 
+
+```{r example, eval=TRUE, warning=FALSE, message=FALSE}
+
+MoranPorcess(N = 2000, Age = 80, tau = 40, r = 1.01, u = 10^-6, alpha = 2*10^-5)
+
+```
+This function returns a list with 2 elements. The first element is a vector of two integers: the number of wild-type cells and the number of mutant cells. The second element specifies whether cancer is detected before age $A$ (positive integer means detected).
+
+The example below simulates a population with 1000 individual and ask for the fraction for population has been detected to have cancer before age of $80$. It take about 5 minutes to finish in a Macbook Pro.
+
+```{r PNAS CML example, eval=FALSE, warning=FALSE, message=FALSE}
+
+	Instance = 0
+	for(i in 1:1000){
+
+		cat("Processing", i, "\n")
+
+		temp = MoranPorcess(N = 2000, Age = 80, tau = 40, r = 1.01, u = 10^-6, alpha = 2*10^-5)[[2]]
+		if(temp > 0)
+			Instance = Instance + 1
+	}
+	
+	Instance/1000
+
+```
+
+# Acute myeloid leukemia
+This mode can also be used to model acute myeloid leukemia (AML). A few studies have demonstrated that age incidence of mutation in acute myeloid leukemia driver genes increase over time [@NEJMoa1408617]. Interestingly, most patients carry only one mutation in AML driver genes. This model was also applied and suggested that age incidence of AML can be explained by a one-mutation model.
+
+
+# Session info
+
+```{r sessionInfo}
+sessionInfo()
+```
+
+# References
